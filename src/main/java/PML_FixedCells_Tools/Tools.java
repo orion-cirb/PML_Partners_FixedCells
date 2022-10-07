@@ -11,6 +11,7 @@ import ij.io.FileSaver;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
+import ij.util.ThreadUtil;
 import io.scif.DependencyException;
 import java.awt.Color;
 import java.awt.Font;
@@ -20,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
 import loci.common.services.ServiceException;
 import loci.formats.FormatException;
@@ -135,16 +137,15 @@ public class Tools {
     /**
      * Remove object with one Z
      */
-    public Objects3DIntPopulation zFilterPop (Objects3DIntPopulation pop) {
+    public void zFilterPop (Objects3DIntPopulation pop) {
         Objects3DIntPopulation popZ = new Objects3DIntPopulation();
         for (Object3DInt obj : pop.getObjects3DInt()) {
             int zmin = obj.getBoundingBox().zmin;
             int zmax = obj.getBoundingBox().zmax;
-            if (zmax != zmin)
-                popZ.addObject(obj);
+            if (zmax == zmin)
+                popZ.removeObject(obj);
         }
-        popZ.resetLabels();
-        return popZ;
+        pop.resetLabels();
     }
     
     
@@ -402,9 +403,101 @@ public class Tools {
         return(objs);
     }
     
+   
+    /**
+     * Parallel version of find foci in nucleus
+     */
+    public ArrayList<Objects3DIntPopulation> stardistMultiFociInCellsPop(ImagePlus img, Objects3DIntPopulation nucPop, ArrayList<Nucleus> nucleus, 
+            String fociType) throws IOException {
+        //
+        int nNuc = nucPop.getNbObjects();
+        ArrayList<Objects3DIntPopulation> foci = new ArrayList<Objects3DIntPopulation>();
+        {
+            // try parallelize
+            final AtomicInteger ai = new AtomicInteger(0);
+            int ncpu = (int) Math.ceil(ThreadUtil.getNbCpus()*0.9);
+            Thread[] threads = ThreadUtil.createThreadArray(ncpu);
+            final int neach = (int) Math.ceil((double)nNuc/(double)ncpu);
+            // Look for nuclei
+            for (int iThread=0; iThread<threads.length; iThread++) {
+                threads[iThread] = new Thread(){
+                    public void run(){
+                        for (int k=ai.getAndIncrement(); k<ncpu; k=ai.getAndIncrement()) {
+                            for (int n = neach*k; ((n<(neach*(k+1))&&(n<nNuc))); n++) {
+                                System.out.println("Doing parallel nucleus "+n);
+                                Objects3DIntPopulation allFociPop = new Objects3DIntPopulation();
+                                float fociIndex = 0;
+                                Object3DInt cell = nucPop.getObjectByLabel(n);
+                                BoundingBox box = cell.getBoundingBox();
+                                int ZStartCell = box.zmin +1;
+                                int ZStopCell = box.zmax + 1;
+                                Roi roiBox = new Roi(box.xmin, box.ymin, box.xmax-box.xmin + 1 , box.ymax - box.ymin + 1);
+                                img.setRoi(roiBox);
+                                img.updateAndDraw();
+                                // Crop image
+                                ImagePlus imgCell = new Duplicator().run(img, ZStartCell, ZStopCell);
+                                imgCell.deleteRoi();
+                                imgCell.updateAndDraw();
+                                ClearCLBuffer imgCL = clij2.push(imgCell);
+                                ClearCLBuffer imgCLM = clij2.create(imgCL);
+                                imgCLM = median_filter(imgCL, 2, 2);
+                                clij2.release(imgCL);
+                                ImagePlus imgM = clij2.pull(imgCLM);
+                                clij2.release(imgCLM);
+
+                                // Go StarDist
+                                File starDistModelFile = new File(modelsPath+File.separator+stardistFociModel);
+                                StarDist2D star = new StarDist2D(syncObject, starDistModelFile);
+                                star.loadInput(imgM);
+                                star.setParams(stardistPercentileBottom, stardistPercentileTop, stardistProbThreshDot, stardistOverlayThreshDot, stardistOutput);
+                                star.run();
+
+                                // label in 3D
+                                ImagePlus imgLabels = star.associateLabels();
+                                imgLabels.setCalibration(cal);
+                                ImageInt label3D = ImageInt.wrap(imgLabels);
+                                Objects3DIntPopulation fociPop = new Objects3DIntPopulationComputation(new Objects3DIntPopulation(label3D)).
+                                        getFilterSize(minFoci/pixVol, maxFoci/pixVol);
+                                // Remove objects with one Z
+                                zFilterPop(fociPop);
+
+                                // find foci in cell
+                                Object3DInt cellT = new Object3DComputation(cell).getObject3DCopy();
+                                cellT.translate(-box.xmin, -box.ymin, -ZStartCell + 1);
+                                Objects3DIntPopulation fociColocPop = findColocCell(cellT, fociPop);
+                                System.out.println(fociColocPop.getNbObjects()+" foci "+fociType+" found in  nucleus "+cell.getLabel());
+                                // write foci parameters in nucleus
+                                writeFociParameters(cellT, fociColocPop, imgM, nucleus, fociType);
+                                // reset foci in global image
+                                int tx = box.xmin;
+                                int ty = box.ymin;
+                                int tz = ZStartCell;
+                                for (Object3DInt foci: fociColocPop.getObjects3DInt()) {
+                                    foci.translate(tx, ty, tz-1);
+                                    fociIndex++;
+                                    foci.setLabel(fociIndex);
+                                    foci.setType((int)cell.getLabel());
+                                    allFociPop.addObject(foci);
+                                }
+                                flush_close(imgCell);
+                                flush_close(imgLabels);
+                                flush_close(imgM);
+                                foci.add(fociPop);
+                            }
+                        }
+                    }
+                };
+            }
+            ThreadUtil.startAndJoin(threads);
+            threads = null;
+        }
+        return(foci);
+    }
+
+    
     /** 
-    * For each nucleus find dots
-    * return dots pop cell population
+    * For each nucleus find foci
+    * return foci pop cell population
     */
     public Objects3DIntPopulation stardistFociInCellsPop(ImagePlus img, Objects3DIntPopulation nucPop, ArrayList<Nucleus> nucleus, String fociType) throws IOException{
         Objects3DIntPopulation allFociPop = new Objects3DIntPopulation();
@@ -441,12 +534,12 @@ public class Tools {
             Objects3DIntPopulation fociPop = new Objects3DIntPopulationComputation(new Objects3DIntPopulation(label3D)).
                     getFilterSize(minFoci/pixVol, maxFoci/pixVol);
             // Remove objects with one Z
-            Objects3DIntPopulation zFilterPop = zFilterPop(fociPop);
+            zFilterPop(fociPop);
             
             // find foci in cell
             Object3DInt cellT = new Object3DComputation(cell).getObject3DCopy();
             cellT.translate(-box.xmin, -box.ymin, -ZStartCell + 1);
-            Objects3DIntPopulation fociColocPop = findColocCell(cellT, zFilterPop);
+            Objects3DIntPopulation fociColocPop = findColocCell(cellT, fociPop);
             System.out.println(fociColocPop.getNbObjects()+" foci "+fociType+" found in  nucleus "+cell.getLabel());
             // write foci parameters in nucleus
             writeFociParameters(cellT, fociColocPop, imgM, nucleus, fociType);
@@ -511,7 +604,9 @@ public class Tools {
                     for (Object3DInt pmlObj : pmlFociPop.getObjects3DInt()) {
                         if (pmlObj.getType() == i) {
                             Measure2Colocalisation coloc = new Measure2Colocalisation(partObj, pmlObj);
-                            if (coloc.getValue(Measure2Colocalisation.COLOC_PC) > 0.25) {
+                            double colocMes = coloc.getValue(Measure2Colocalisation.COLOC_VOLUME);
+                            System.out.println(colocMes);
+                            if (colocMes > 0.25*partObj.size()) {
                                 partnerN++;
                                 partnerColoVol += new MeasureVolume(partObj).getVolumeUnit();
                             }
