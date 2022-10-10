@@ -36,6 +36,7 @@ import mcib3d.geom2.measurements.Measure2Colocalisation;
 import mcib3d.geom2.measurements.MeasureIntensity;
 import mcib3d.geom2.measurements.MeasureObject;
 import mcib3d.geom2.measurements.MeasureVolume;
+import mcib3d.geom2.measurementsPopulation.MeasurePopulationColocalisation;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.ImageInt;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
@@ -591,31 +592,44 @@ public class Tools {
         }
     }
     
+    /**
+     * Find partner/pml associated to one nucleus
+     * 
+     */
+    public Objects3DIntPopulation findFociNuc(int nucN, Objects3DIntPopulation fociPop) {
+        Objects3DIntPopulation pop = new Objects3DIntPopulation();
+        for (Object3DInt partObj : fociPop.getObjects3DInt()) {
+                if (partObj.getType() == nucN)
+                    pop.addObject(partObj);
+        }
+        return(pop);
+    }
+    
     
     /**
      * Find partner coloc with pml
      */
-    public void findColocPartnerPlm(int nucN, Objects3DIntPopulation pmlFociPop, Objects3DIntPopulation partnerFociPop, ArrayList<Nucleus> nucleus) {
-        for (int i = 1; i <= nucN; i++) {
+    public void findColocPartnerPlm(int nucN, Objects3DIntPopulation partnerFociPop, Objects3DIntPopulation pmlFociPop, ArrayList<Nucleus> nucleus) {
+        for (int n = 1; n <= nucN; n++) {
             int partnerN = 0;
             double partnerColoVol = 0;
+            // find foic in nucleus n
+            Objects3DIntPopulation partnerNuc = findFociNuc(n, partnerFociPop);
+            Objects3DIntPopulation pmlNuc = findFociNuc(n, pmlFociPop);
+            // find coloc
+            MeasurePopulationColocalisation coloc = new MeasurePopulationColocalisation(partnerNuc, pmlNuc);
             for (Object3DInt partObj : partnerFociPop.getObjects3DInt()) {
-                if (partObj.getType() == i) {
-                    for (Object3DInt pmlObj : pmlFociPop.getObjects3DInt()) {
-                        if (pmlObj.getType() == i) {
-                            Measure2Colocalisation coloc = new Measure2Colocalisation(partObj, pmlObj);
-                            double colocMes = coloc.getValue(Measure2Colocalisation.COLOC_VOLUME);
-                            System.out.println(colocMes);
-                            if (colocMes > 0.25*partObj.size()) {
-                                partnerN++;
-                                partnerColoVol += new MeasureVolume(partObj).getVolumeUnit();
-                            }
-                        }
+                for (Object3DInt pmlObj : pmlFociPop.getObjects3DInt()) {
+                    double colocVal = coloc.getValueObjectsPair(partObj, pmlObj);
+                    System.out.println(colocVal+", "+0.25*partObj.size());
+                    if (colocVal > 0.25*partObj.size()) {
+                        partnerN++;
+                        partnerColoVol += new MeasureVolume(partObj).getVolumeUnit();
                     }
                 }
             }
-            nucleus.get(i-1).setNucPartnerPmlColocFoci(partnerN);
-            nucleus.get(i-1).setNucPartnerPmlColocVolFoci(partnerColoVol);
+            nucleus.get(n-1).setNucPartnerPmlColocFoci(partnerN);
+            nucleus.get(n-1).setNucPartnerPmlColocVolFoci(partnerColoVol);
         }
     }
     
@@ -663,12 +677,12 @@ public class Tools {
         ImageHandler imgObj2 = imgObj1.createSameDimensions();
         if (pop2.getNbObjects() > 0)
             for (Object3DInt obj : pop2.getObjects3DInt())
-                obj.drawObject(imgObj2, 255);
+                obj.drawObject(imgObj2, obj.getType());
         
         ImageHandler imgObj3 = imgObj1.createSameDimensions();
         if (pop3.getNbObjects() > 0)
             for (Object3DInt obj : pop3.getObjects3DInt())
-                obj.drawObject(imgObj3, 255);      
+                obj.drawObject(imgObj3, obj.getType());      
         
    
         // save image for objects population

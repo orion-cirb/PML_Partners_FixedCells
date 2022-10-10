@@ -148,7 +148,7 @@ public class PML_Partners_FixedCells implements PlugIn {
                     partnerFociPop = tools.stardistFociInCellsPop(imgPartner, nucPop, nucleus, "partner");
                     tools.flush_close(imgPartner); 
                     // Find coloc partner/pml
-                    tools.findColocPartnerPlm(nucPop.getNbObjects(), pmlFociPop, partnerFociPop, nucleus);
+                    tools.findColocPartnerPlm(nucPop.getNbObjects(), partnerFociPop, pmlFociPop, nucleus);
                 }
                 
                 // Write results
