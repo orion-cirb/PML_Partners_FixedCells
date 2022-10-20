@@ -12,7 +12,7 @@
         <packaging>jar</packaging>
 	<name>PML_Partners_FixedCells</name>
 	<description>
-            find PML in nucleus in fixed cells
+            Find PML and Partner dots in nuclei of fixed cells
         </description>
 
 	<developers>
@@ -62,13 +62,13 @@
                 <version>6.8.1</version>
             </dependency>
             
+            <!-- Use of local version of MCIB3D
             <dependency>
 		<groupId>org.framagit.mcib3d</groupId>
 		<artifactId>mcib3d-core</artifactId>
 		<version>4.0.93</version>		
-            </dependency>
+            </dependency>*-->
 
-            
             <dependency>
                     <groupId>ome</groupId>
                     <artifactId>formats-common</artifactId>
@@ -103,6 +103,12 @@
                 <version>20120621</version>
                 <type>jar</type>
             </dependency>
+	 <dependency>
+	  <groupId>mcib</groupId>
+	  <artifactId>mcib3d-core</artifactId>
+	  <version>4.0.93</version>
+	  <type>jar</type>
+	 </dependency>
 	</dependencies>
         <repositories>
             <repository>

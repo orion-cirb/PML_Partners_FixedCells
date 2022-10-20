@@ -1,7 +1,7 @@
 /*
- * Find Nucleus and count PML inside 
- * if Third channel detect dots (partners) anc compute coloc
- * Author Philippe Mailly
+ * Find nuclei and count PML dots inside 
+ * If third channel, detect Partner dots and compute their colocalization with PML dots
+ * Author: Philippe Mailly
  */
 
 import PML_FixedCells_Tools.Nucleus;
@@ -35,21 +35,22 @@ import org.scijava.util.ArrayUtils;
 public class PML_Partners_FixedCells implements PlugIn {
     
     Tools tools = new Tools();
-    
+    private boolean canceled = false;
     private String imageDir = "";
     public String outDirResults = "";
-    private boolean canceled = false;
-   
     private BufferedWriter outPutResults;
     
-
-    /**
-     * 
-     * @param arg
-     */
-    @Override
+    
     public void run(String arg) {
         try {
+            if (canceled) {
+                IJ.showMessage("Plugin canceled");
+                return;
+            }
+            if ((!tools.checkInstalledModules()) || (!tools.checkStarDistModels())) {
+                return;
+            }
+            
             imageDir = IJ.getDirectory("Choose directory containing image files...");
             if (imageDir == null) {
                 return;
@@ -58,117 +59,111 @@ public class PML_Partners_FixedCells implements PlugIn {
             String file_ext = tools.findImageType(new File(imageDir));
             ArrayList<String> imageFiles = tools.findImages(imageDir, file_ext);
             if (imageFiles == null) {
-                IJ.showMessage("Error", "No images found with "+file_ext+" extension");
+                IJ.showMessage("Error", "No images found with " + file_ext + " extension");
                 return;
+            }   
+            
+            // Create output folder
+            outDirResults = imageDir + File.separator + "Results" + File.separator;
+            File outDir = new File(outDirResults);
+            if (!Files.exists(Paths.get(outDirResults))) {
+                outDir.mkdir();
             }
-            
-            
-            // create OME-XML metadata store of the latest schema version
+            // Write header in results file
+            String header = "Image name\tNucleus ID\tNucleus volume (µm3)\tPML foci nb\tPML foci sum volume\tPML foci sum intensity\t"
+                    + "PML diffuse sum intensity\tPML F-function-related spatial distribution index\tPartner foci nb\tPartner foci sum volume\tPartner foci sum intensity\t"
+                    + "Partner diffuse sum intensity\tPartner F-function-related spatial distribution index\tPML-positive Partner foci nb\tPML-positive Partner foci sum volume\n";
+            FileWriter fwResults = new FileWriter(outDirResults + "results.xls", false);
+            outPutResults = new BufferedWriter(fwResults);
+            outPutResults.write(header);
+            outPutResults.flush();
+                      
+            // Create OME-XML metadata store of the latest schema version
             ServiceFactory factory;
             factory = new ServiceFactory();
             OMEXMLService service = factory.getInstance(OMEXMLService.class);
             IMetadata meta = service.createOMEXMLMetadata();
             ImageProcessorReader reader = new ImageProcessorReader();
             reader.setMetadataStore(meta);
-            // Find channel names , calibration
             reader.setId(imageFiles.get(0));
+            
+            // Find image calibration
             tools.cal = tools.findImageCalib(meta);
+            
+            // Find channel names
             String[] chsName = tools.findChannels(imageFiles.get(0), meta, reader);
-            
-            
+
             // Channels dialog
-            
             String[] channels = tools.dialog(chsName);
-            if ( channels == null || tools.canceled) {
+            if (channels == null) {
                 IJ.showStatus("Plugin cancelled");
                 return;
-            }
+            }         
             
-            // create output folder
-            outDirResults = imageDir + File.separator+ "Results"+ File.separator;
-            File outDir = new File(outDirResults);
-            if (!Files.exists(Paths.get(outDirResults))) {
-                outDir.mkdir();
-            }
             
-            // Write headers results for results file
-            FileWriter fileResults = null;
-            String resultsName = "results.xls";
-            try {
-                fileResults = new FileWriter(outDirResults + resultsName, false);
-            } catch (IOException ex) {
-                Logger.getLogger(PML_Partners_FixedCells.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            outPutResults = new BufferedWriter(fileResults);
-            try {
-                outPutResults.write("ImageName\t#Nucleus\tNucleus Volume\tPML foci number\tPML foci volume\tPML foci sum Intensity\tPartner foci number"
-                        + "\tPartner foci volume\tPartner foci sum Intensity\tPml diffuse Intensity\tPartner diffuse intensity\tPartner coloc with pml number"
-                        + "\tPartner coloc pml volume\n");
-                outPutResults.flush();
-            } catch (IOException ex) {
-                Logger.getLogger(PML_Partners_FixedCells.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            
-            ArrayList<Nucleus>  nucleus = new ArrayList();
             for (String f : imageFiles) {
-                reader.setId(f);
                 String rootName = FilenameUtils.getBaseName(f);
+                tools.print("--- ANALYZING IMAGE " + rootName + " ------");
+                reader.setId(f);
+                
                 ImporterOptions options = new ImporterOptions();
                 options.setId(f);
                 options.setSplitChannels(true);
                 options.setQuiet(true);
                 options.setColorMode(ImporterOptions.COLOR_MODE_GRAYSCALE);
-               
                 
-                // open DAPI Channel
-                
-                System.out.println("--- Opening nuclei channel  ...");
-                int indexCh = ArrayUtils.indexOf(chsName,channels[0]);
+                // Open DAPI channel
+                tools.print("- Analyzing " + tools.channelNames[0] + " channel -");
+                int indexCh = ArrayUtils.indexOf(chsName, channels[0]);
                 ImagePlus imgDAPI = BF.openImagePlus(options)[indexCh];
-                // Find nucleus with stardist
-                Objects3DIntPopulation nucPop = tools.stardistNucleiPop(imgDAPI, nucleus);
-                int totalDapi = nucPop.getNbObjects();
-                System.out.println(totalDapi +" nucleus found");
+                
+                // Find DAPI nuclei with StarDist
+                System.out.println("Finding " + tools.channelNames[0] + " nuclei....");
+                ArrayList<Nucleus>  nuclei = new ArrayList();
+                Objects3DIntPopulation nucPop = tools.stardistNucleiPop(imgDAPI, nuclei);
+                System.out.println(nucPop.getNbObjects() + " " + tools.channelNames[0] + " nuclei found");
 
-                // Open Original PML channel to read foci intensity
-                System.out.println("--- Opening PML channel  ...");
-                indexCh = ArrayUtils.indexOf(chsName,channels[1]);
+                // Open PML channel
+                tools.print("- Analyzing " + tools.channelNames[1] + " channel -");
+                indexCh = ArrayUtils.indexOf(chsName, channels[1]);
                 ImagePlus imgPML = BF.openImagePlus(options)[indexCh];
-                Objects3DIntPopulation pmlFociPop = tools.stardistFociInCellsPop(imgPML, nucPop, nucleus, "plm");
-                tools.flush_close(imgPML); 
                 
+                // Find PML foci with StarDist
+                Objects3DIntPopulation pmlFociPop = tools.stardistFociInCellsPop(imgPML, nucPop, nuclei, "PML");
+                System.out.println(pmlFociPop.getNbObjects() + " PML foci colocalized with " + tools.channelNames[0] + " nuclei");
+                tools.flush_close(imgPML);
                 
-                // if partners channel
-                // Open Original partners channel to read foci intensity
+                // If Partner channel exists...
                 Objects3DIntPopulation partnerFociPop = new Objects3DIntPopulation();
                 if (chsName.length > 2) {
-                    System.out.println("--- Opening partner channel  ...");
-                    indexCh = ArrayUtils.indexOf(chsName,channels[2]);
+                    // Open Partner channel
+                    tools.print("- Analyzing " + tools.channelNames[2] + " channel -");
+                    indexCh = ArrayUtils.indexOf(chsName, channels[2]);
                     ImagePlus imgPartner = BF.openImagePlus(options)[indexCh];
-                    partnerFociPop = tools.stardistFociInCellsPop(imgPartner, nucPop, nucleus, "partner");
-                    tools.flush_close(imgPartner); 
-                    // Find coloc partner/pml
-                    tools.findColocPartnerPlm(nucPop.getNbObjects(), partnerFociPop, pmlFociPop, nucleus);
+                    // Find Partner foci with StarDist
+                    partnerFociPop = tools.stardistFociInCellsPop(imgPartner, nucPop, nuclei, "Partner");
+                    System.out.println(partnerFociPop.getNbObjects() + " Partner foci colocalized with " + tools.channelNames[0] + " nuclei");
+                    tools.flush_close(imgPartner);
+                    // Colocalization between PML and Partner foci
+                    tools.findColocPartnerPml(nucPop.getNbObjects(), partnerFociPop, pmlFociPop, nuclei);
                 }
+                
+                // Save images
+                tools.saveImgObjects(nucPop, pmlFociPop, partnerFociPop, imgDAPI, rootName, outDirResults);
+                tools.flush_close(imgDAPI);
                 
                 // Write results
-                for (Nucleus nuc : nucleus) {
+                for (Nucleus nuc: nuclei) {
                     outPutResults.write(rootName+"\t"+nuc.getIndex()+"\t"+nuc.getNucVol()+"\t"+nuc.getNucPmlFoci()+"\t"+nuc.getNucPmlVol()+"\t"+
-                    nuc.getNucPmlFociInt()+"\t"+nuc.getNucPartnerFoci()+"\t"+nuc.getNucPartnerVol()+"\t"+nuc.getNucPartnerFociInt()+"\t"+
-                    nuc.getNucPmlInt()+"\t"+nuc.getNucPartnerInt()+"\t"+nuc.getNucPartnerPmlColocFoci()+"\t"+nuc.getNucPartnerPmlColocVolFoci()+"\n");
+                    nuc.getNucPmlFociInt()+"\t"+nuc.getNucPmlInt()+"\t"+nuc.getNucPmlSdiF()+"\t"+nuc.getNucPartnerFoci()+"\t"+nuc.getNucPartnerVol()+"\t"+
+                    nuc.getNucPartnerFociInt()+"\t"+nuc.getNucPartnerInt()+"\t"+nuc.getNucPartnerSdiF()+"\t"+nuc.getNucPartnerPmlColocFoci()+"\t"+nuc.getNucPartnerPmlColocVolFoci()+"\n");
                     outPutResults.flush();
                 }
-                
-                // save images
-                tools.saveImgObjects(nucPop, pmlFociPop, partnerFociPop, rootName, imgDAPI, outDirResults);
-                tools.flush_close(imgDAPI);
-        
-                
             }
             outPutResults.close();
         } catch (IOException | FormatException | DependencyException | ServiceException | io.scif.DependencyException ex) {
             Logger.getLogger(PML_Partners_FixedCells.class.getName()).log(Level.SEVERE, null, ex);
         }
-        IJ.showStatus("Process done");
+        tools.print("--- All done! ---");
     }    
 }    

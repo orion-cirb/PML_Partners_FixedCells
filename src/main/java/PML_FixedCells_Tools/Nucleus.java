@@ -9,29 +9,38 @@ public class Nucleus {
     private int index;
     // Nucleus volume
     private double nucVol;
-    // Nucleus diffuse intensity in pml
-    private double nucPmlInt;
-    // Nucleus diffuse intensity in partner
-    private double nucPartnerInt;
-    // Nucleus pml foci number
+    
+    // PML foci number
     private int nucPmlFoci;
-    // Nucleus partner foci number
-    private int nucPartnerFoci;
-    // Nucleus pml foci volume
+    // PML foci volume
     private double nucPmlVol;
-    // Nucleus partner foci volume
-    private double nucPartnerVol;
-    // Nucleus pml intensity
+    // PML foci intensity
     private double nucPmlFociInt;
-    // Nucleus partner intensity
+    // PML diffuse intensity
+    private double nucPmlInt;
+    // PML distribution coefficient
+    private Double nucPmlSdiF;
+    
+    // Partner foci number
+    private int nucPartnerFoci;   
+    // Partner foci volume
+    private double nucPartnerVol;
+    // Partner foci intensity
     private double nucPartnerFociInt;
-    // Number of partner coloc with pml
+    // Partner diffuse intensity
+    private double nucPartnerInt;
+    // Partner distribution coefficient
+    private Double nucPartnerSdiF;
+    
+    // Number of partner foci colocalizng with PML foci
     private int nucPartnerPmlColocFoci;
-    // Volume of partner coloc with pml
+    // Volume of partner foci colocalizng with PML foci
     private double nucPartnerPmlColocVolFoci;
+    
 	
     public Nucleus(int index, double nucVol, double nucPmlInt, double nucPartnerInt, int nucPmlFoci, int nucPartnerFoci, double nucPmlVol, 
-            double nucPartnerVol, double nucPmlFociInt, double nucPartnerFociInt, int nucPartnerPmlColocFoci, double nucPartnerPmlColocVolFoci) {
+            double nucPartnerVol, double nucPmlFociInt, double nucPartnerFociInt, int nucPartnerPmlColocFoci, double nucPartnerPmlColocVolFoci,
+            Double nucPmlSdiF, Double nucPartnerSdiF) {
         this.index = index;
         this.nucVol = nucVol;
         this.nucPmlInt = nucPmlInt;
@@ -44,6 +53,8 @@ public class Nucleus {
         this.nucPartnerFociInt = nucPartnerFociInt;
         this.nucPartnerPmlColocFoci = nucPartnerPmlColocFoci;
         this.nucPartnerPmlColocVolFoci = nucPartnerPmlColocVolFoci;
+        this.nucPmlSdiF = nucPmlSdiF;
+        this.nucPartnerSdiF = nucPartnerSdiF;
     }
         
         public void setIndex(int index) {
@@ -94,6 +105,13 @@ public class Nucleus {
             this.nucPartnerPmlColocVolFoci = nucPartnerPmlColocVolFoci;
 	}
         
+        public void setNucPmlSdiF(Double nucPmlSdiF) {
+            this.nucPmlSdiF = nucPmlSdiF;
+        }
+        
+        public void setNucPartnerSdiF(Double nucPartnerSdiF) {
+            this.nucPartnerSdiF = nucPartnerSdiF;
+        }
         
         
         public int getIndex() {
@@ -144,5 +162,11 @@ public class Nucleus {
             return nucPartnerPmlColocVolFoci;
 	}
         
-       
+       public Double getNucPmlSdiF() {
+            return nucPmlSdiF;
+        }
+        
+        public Double getNucPartnerSdiF() {
+            return nucPartnerSdiF;
+        }
 }
