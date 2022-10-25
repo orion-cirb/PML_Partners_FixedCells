@@ -32,15 +32,17 @@ public class Nucleus {
     // Partner distribution coefficient
     private Double nucPartnerSdiF;
     
-    // Number of partner foci colocalizng with PML foci
+    // Number of partner foci colocalizing with PML foci
     private int nucPartnerPmlColocFoci;
-    // Volume of partner foci colocalizng with PML foci
+    // Volume of partner foci colocalizing with PML foci
     private double nucPartnerPmlColocVolFoci;
+    // Overlapping volume (in percentage) of partner foci colocalizing with PML foci
+    private double nucPartnerPmlColocVolOverlap;
     
 	
     public Nucleus(int index, double nucVol, double nucPmlInt, double nucPartnerInt, int nucPmlFoci, int nucPartnerFoci, double nucPmlVol, 
             double nucPartnerVol, double nucPmlFociInt, double nucPartnerFociInt, int nucPartnerPmlColocFoci, double nucPartnerPmlColocVolFoci,
-            Double nucPmlSdiF, Double nucPartnerSdiF) {
+            double nucPartnerPmlColocVolOverlap, Double nucPmlSdiF, Double nucPartnerSdiF) {
         this.index = index;
         this.nucVol = nucVol;
         this.nucPmlInt = nucPmlInt;
@@ -53,6 +55,7 @@ public class Nucleus {
         this.nucPartnerFociInt = nucPartnerFociInt;
         this.nucPartnerPmlColocFoci = nucPartnerPmlColocFoci;
         this.nucPartnerPmlColocVolFoci = nucPartnerPmlColocVolFoci;
+        this.nucPartnerPmlColocVolOverlap = nucPartnerPmlColocVolOverlap;
         this.nucPmlSdiF = nucPmlSdiF;
         this.nucPartnerSdiF = nucPartnerSdiF;
     }
@@ -104,6 +107,10 @@ public class Nucleus {
         public void setNucPartnerPmlColocVolFoci(double nucPartnerPmlColocVolFoci) {
             this.nucPartnerPmlColocVolFoci = nucPartnerPmlColocVolFoci;
 	}
+        
+        public void setNucPartnerPmlColocVolOverlap(double nucPartnerPmlColocVolOverlap) {
+            this.nucPartnerPmlColocVolOverlap = nucPartnerPmlColocVolOverlap;
+        }
         
         public void setNucPmlSdiF(Double nucPmlSdiF) {
             this.nucPmlSdiF = nucPmlSdiF;
@@ -161,6 +168,10 @@ public class Nucleus {
         public double getNucPartnerPmlColocVolFoci() {
             return nucPartnerPmlColocVolFoci;
 	}
+        
+        public double getNucPartnerPmlColocVolOverlap() {
+            return nucPartnerPmlColocVolOverlap;
+        }
         
        public Double getNucPmlSdiF() {
             return nucPmlSdiF;

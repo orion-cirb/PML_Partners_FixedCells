@@ -450,7 +450,7 @@ public class Tools {
        // Instantiate Nuclei
        for (Object3DInt obj: popZFilter.getObjects3DInt()) {
            double objVol = new MeasureVolume(obj).getVolumeUnit();
-           nuclei.add(new Nucleus((int)obj.getLabel(), objVol, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0));
+           nuclei.add(new Nucleus((int)obj.getLabel(), objVol, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0));
        }
        
        return(popZFilter);
@@ -737,6 +737,7 @@ public class Tools {
         for (int n = 1; n <= nucNb; n++) {
             int partnerNb = 0;
             double partnerColocVol = 0;
+            double overlapColocVol = 0;
             
             // Get Partner and PML foci in nucleus
             Objects3DIntPopulation partnerNuc = findFociNuc(n, partnerFociPop);
@@ -750,12 +751,14 @@ public class Tools {
                     if (colocVal > 0.25*partnerObj.size()) {
                         partnerNb++;
                         partnerColocVol += new MeasureVolume(partnerObj).getVolumeUnit();
+                        overlapColocVol += colocVal;
                     }
                 }
             }
             System.out.println(partnerNb + " Partner foci colocalized with PML foci in nucleus " + n);
             nuclei.get(n-1).setNucPartnerPmlColocFoci(partnerNb);
             nuclei.get(n-1).setNucPartnerPmlColocVolFoci(partnerColocVol);
+            nuclei.get(n-1).setNucPartnerPmlColocVolOverlap(100*pixVol*overlapColocVol/partnerColocVol);
         }
     }
     
