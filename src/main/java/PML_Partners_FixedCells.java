@@ -73,7 +73,7 @@ public class PML_Partners_FixedCells implements PlugIn {
             String header = "Image name\tNucleus ID\tNucleus volume (µm3)\tPML foci nb\tPML foci sum volume\tPML foci sum intensity\t"
                     + "PML diffuse sum intensity\tPML F-function-related spatial distribution index\tPartner foci nb\tPartner foci sum volume\tPartner foci sum intensity\t"
                     + "Partner diffuse sum intensity\tPartner F-function-related spatial distribution index\tPML-positive Partner foci nb\t"
-                    + "PML-positive Partner foci sum volume\tPML-positive Partner foci volume overlap percentage (%)\n";
+                    + "PML-positive Partner foci sum volume\tPML-positive Partner foci sum volume overlap\n";
             FileWriter fwResults = new FileWriter(outDirResults + "results.xls", false);
             outPutResults = new BufferedWriter(fwResults);
             outPutResults.write(header);
@@ -158,7 +158,7 @@ public class PML_Partners_FixedCells implements PlugIn {
                     outPutResults.write(rootName+"\t"+nuc.getIndex()+"\t"+nuc.getNucVol()+"\t"+nuc.getNucPmlFoci()+"\t"+nuc.getNucPmlVol()+"\t"+
                     nuc.getNucPmlFociInt()+"\t"+nuc.getNucPmlInt()+"\t"+nuc.getNucPmlSdiF()+"\t"+nuc.getNucPartnerFoci()+"\t"+nuc.getNucPartnerVol()+"\t"+
                     nuc.getNucPartnerFociInt()+"\t"+nuc.getNucPartnerInt()+"\t"+nuc.getNucPartnerSdiF()+"\t"+nuc.getNucPartnerPmlColocFoci()+"\t"+
-                            nuc.getNucPartnerPmlColocVolFoci()+"\t"+nuc.getNucPartnerPmlColocVolOverlap()+"\n");
+                    nuc.getNucPartnerPmlColocVolFoci()+"\t"+nuc.getNucPartnerPmlColocVolOverlap()+"\n");
                     outPutResults.flush();
                 }
             }

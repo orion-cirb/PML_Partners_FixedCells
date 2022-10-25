@@ -758,7 +758,7 @@ public class Tools {
             System.out.println(partnerNb + " Partner foci colocalized with PML foci in nucleus " + n);
             nuclei.get(n-1).setNucPartnerPmlColocFoci(partnerNb);
             nuclei.get(n-1).setNucPartnerPmlColocVolFoci(partnerColocVol);
-            nuclei.get(n-1).setNucPartnerPmlColocVolOverlap(100*pixVol*overlapColocVol/partnerColocVol);
+            nuclei.get(n-1).setNucPartnerPmlColocVolOverlap(overlapColocVol*pixVol);
         }
     }
     
