@@ -1,6 +1,6 @@
 package PML_FixedCells_Tools;
 
-import StardistOrion.StarDist2D;
+import PML_FixedCells_StardistOrion.StarDist2D;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
