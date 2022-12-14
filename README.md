@@ -12,7 +12,7 @@
 3 channels:
   1. *Alexa Fluor 647:* Partner foci (non mandatory)
   2. *Alexa Fluor 568:* PML foci
-  4. *DAPI:* DAPI nuclei
+  3. *DAPI:* DAPI nuclei
 
 ### Plugin description
 
